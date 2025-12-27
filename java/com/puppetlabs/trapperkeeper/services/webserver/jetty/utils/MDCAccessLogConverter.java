@@ -2,11 +2,11 @@ package com.puppetlabs.trapperkeeper.services.webserver.jetty.utils;
 
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 import ch.qos.logback.core.util.OptionHelper;
-import ch.qos.logback.access.pattern.AccessConverter;
-import ch.qos.logback.access.spi.IAccessEvent;
+import ch.qos.logback.access.common.pattern.AccessConverter;
+import ch.qos.logback.access.common.spi.IAccessEvent;
 
 /**
  * A Logback pattern converter for logback-access that provides access to
@@ -93,9 +93,9 @@ public class MDCAccessLogConverter extends AccessConverter {
 
   private Map<String, String> extractMdcFromRequest(HttpServletRequest request) {
     // Will either be null or a Map<String, String> stored by an instance of
-    // the MDCRequestLogHandler class.
+    // the MDCHandler class.
     @SuppressWarnings("unchecked")
-    Map<String, String> result = (Map<String, String>) request.getAttribute(MDCRequestLogHandler.MDC_ATTR);
+    Map<String, String> result = (Map<String, String>) request.getAttribute(MDCHandler.MDC_ATTR);
 
     return result;
   }
