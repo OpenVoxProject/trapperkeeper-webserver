@@ -1,23 +1,7 @@
 (def i18n-version "1.0.4")
-(def jetty-version "10.0.26")
-(def logback-version "1.3.16")
+(def jetty-version "12.1.5")
+(def logback-version "1.5.32")
 (def slf4j-version "2.0.17")
-
-(require '[clojure.string :as str]
-         '[leiningen.core.main :as main])
-(defn fail-if-logback->1-3!
-  "Fails the build if logback-version is > 1.3.x and Jetty major version is 10."
-  [logback-version jetty-version]
-  (let [jetty-major (Integer/parseInt (first (str/split (str jetty-version) #"\.")))
-        [x y] (->> (str/split (str logback-version) #"\.")
-                   (take 2)
-                   (map #(Integer/parseInt %)))]
-    (when (and (= jetty-major 10)
-              (or (> x 1)
-                  (and (= x 1) (> y 3))))
-      (main/abort (format "logback-version %s is not supported by Jetty 10. Must be 1.3.x until we update to Jetty 12." logback-version)))))
-
-(fail-if-logback->1-3! logback-version jetty-version)
 
 (defproject org.openvoxproject/trapperkeeper-webserver "10.0.1-SNAPSHOT"
   :description "A jetty-based webserver implementation for use with the org.openvoxproject/trapperkeeper service framework."
@@ -43,19 +27,17 @@
                          [org.clojure/tools.reader "1.6.0"]
                          [org.clojure/tools.macro "0.2.2"]
 
-                         ;; Jetty Webserver
-                         [org.eclipse.jetty/jetty-jmx ~jetty-version]
-                         [org.eclipse.jetty/jetty-proxy ~jetty-version]
+                         ;; Jetty Webserver (12.x with ee10 modules for Jakarta EE 10)
+                         [jakarta.servlet/jakarta.servlet-api "6.0.0"]
                          [org.eclipse.jetty/jetty-server ~jetty-version]
-                         [org.eclipse.jetty/jetty-servlet ~jetty-version]
-                         [org.eclipse.jetty/jetty-servlets ~jetty-version]
-                         [org.eclipse.jetty/jetty-webapp ~jetty-version]
-                         [org.eclipse.jetty.websocket/websocket-jetty-server ~jetty-version]
-                         ;; used in pcp-client
-                         [org.eclipse.jetty.websocket/websocket-jetty-api ~jetty-version]
-                         [org.eclipse.jetty.websocket/websocket-jetty-client ~jetty-version]
+                         [org.eclipse.jetty.ee10/jetty-ee10-servlet ~jetty-version]
+                         [org.eclipse.jetty.ee10/jetty-ee10-servlets ~jetty-version]
+                         [org.eclipse.jetty.ee10/jetty-ee10-webapp ~jetty-version]
+                         [org.eclipse.jetty.ee10/jetty-ee10-proxy ~jetty-version]
+                         [org.eclipse.jetty/jetty-jmx ~jetty-version]
 
-                         [ch.qos.logback/logback-access ~logback-version]
+                         [ch.qos.logback.access/logback-access-common "2.0.12"]
+                         [ch.qos.logback.access/logback-access-jetty12 "2.0.12"]
                          [ch.qos.logback/logback-classic ~logback-version]
                          [ch.qos.logback/logback-core ~logback-version]
                          [clj-time "0.15.2"]
@@ -83,28 +65,25 @@
                          [prismatic/schema "1.4.1"]
                          [ring/ring-codec "1.3.0"]
                          [ring/ring-core "1.14.2"]
-                         [ring/ring-servlet "1.14.2"]]
-
+                         [org.ring-clojure/ring-jakarta-servlet "1.15.3"]]
+  
   :dependencies [[org.clojure/clojure]
                  [org.clojure/java.jmx]
                  [org.clojure/tools.logging]
 
-                 ;; Jetty Webserver
+                 ;; Jetty Webserver (12.x with ee10 modules for Jakarta EE 10)
+                 [jakarta.servlet/jakarta.servlet-api]
                  [org.eclipse.jetty/jetty-server]
-                 [org.eclipse.jetty/jetty-servlet]
-                 [org.eclipse.jetty/jetty-servlets]
-                 [org.eclipse.jetty/jetty-webapp]
-                 [org.eclipse.jetty/jetty-proxy]
+                 [org.eclipse.jetty.ee10/jetty-ee10-servlet]
+                 [org.eclipse.jetty.ee10/jetty-ee10-servlets]
+                 [org.eclipse.jetty.ee10/jetty-ee10-webapp]
+                 [org.eclipse.jetty.ee10/jetty-ee10-proxy]
                  [org.eclipse.jetty/jetty-jmx]
-                 [org.eclipse.jetty.websocket/websocket-jetty-server]
-                 ;; used in pcp-client
-                 [org.eclipse.jetty.websocket/websocket-jetty-client]
-                 [org.eclipse.jetty.websocket/websocket-jetty-api]
 
-                 [ch.qos.logback/logback-access]
+                 [ch.qos.logback.access/logback-access-common]
+                 [ch.qos.logback.access/logback-access-jetty12]
                  [ch.qos.logback/logback-classic]
                  [ch.qos.logback/logback-core]
-                 [javax.servlet/javax.servlet-api]
                  [org.flatland/ordered]
                  [org.openvoxproject/i18n]
                  [org.openvoxproject/kitchensink]
@@ -114,7 +93,7 @@
                  [org.slf4j/jul-to-slf4j]
                  [prismatic/schema]
                  [ring/ring-codec]
-                 [ring/ring-servlet]]
+                 [org.ring-clojure/ring-jakarta-servlet]]
 
   :source-paths  ["src"]
   :java-source-paths  ["java"]
@@ -159,6 +138,7 @@
                          ;; this only ensures that we run with the proper profiles
                          ;; during testing. This JVM opt will be set in the puppet module
                          ;; that sets up the JVM classpaths during installation.
+                         ;; Note: Jetty 12 requires Java 17+
                          :jvm-opts ~(let [version (System/getProperty "java.version")
                                           [major minor _] (clojure.string/split version #"\.")
                                           unsupported-ex (ex-info "Unsupported major Java version. Expects 17 or 21"
