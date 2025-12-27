@@ -125,7 +125,6 @@
 (def RingEndpoint
   {:type     (schema/eq :ring)})
 
-
 (def ServletEndpoint
   {:type     (schema/eq :servlet)
    :servlet  java.lang.Class})
@@ -182,20 +181,6 @@
   Server object."
   [webserver-context :- ServerContext]
   (instance? Server (:server webserver-context)))
-
-(schema/defn ^:always-validate
-  merge-webserver-overrides-with-options :- config/WebserverRawConfig
-  "Merge any overrides made to the webserver config settings with the supplied
-   options."
-  [webserver-context :- ServerContext
-   options :- config/WebserverRawConfig]
-  (let [overrides (:overrides (swap! (:state webserver-context)
-                                     assoc
-                                     :overrides-read-by-webserver
-                                     true))]
-    (doseq [key (keys overrides)]
-      (log/info (i18n/trs "webserver config overridden for key ''{0}''" (name key))))
-    (merge options overrides)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; SSL Context Functions
@@ -1104,7 +1089,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Service Function Implementations
-
 (schema/defn ^:always-validate add-context-handler!
   [context base-path context-path options :- ContextHandlerOptions]
   (let [defaults          {:context-listeners []}
@@ -1121,7 +1105,7 @@
     (register-endpoint! state endpoint-map context-path)
     (add-context-handler s base-path context-path
                          context-listeners
-                         {:follow-links?                   (:follow-links options)
+                         {:follow-links? (:follow-links options)
                           :enable-trailing-slash-redirect? enable-redirect
                           :normalize-request-uri? normalize-request-uri})))
 

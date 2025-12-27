@@ -1,6 +1,6 @@
 (ns puppetlabs.trapperkeeper.services.webserver.jetty-core-test
   (:import
-   (org.eclipse.jetty.server.handler ContextHandlerCollection)
+   (org.eclipse.jetty.server.handler ContextHandler ContextHandlerCollection)
    (java.security KeyStore)
    (java.net SocketTimeoutException Socket)
    (java.io InputStreamReader BufferedReader PrintWriter)
@@ -167,7 +167,7 @@
                        :ssl-context-client-factory nil
                        :ssl-context-server-factory nil}
         webserver-context (fn [state]
-                            {:handlers (ContextHandlerCollection.)
+                            {:handlers (ContextHandlerCollection. (into-array ContextHandler []))
                              :server nil
                              :state (atom (merge default-state state))})]
     (testing "able to associate overrides when overrides not already set"
@@ -534,7 +534,8 @@
        (testing "posting data larger than the configured limit fails with 413"
          (let [response (post-request port bigger-post-data)]
            (is (= 413 (:status response)))
-           (is (= "" (:body response)))))
+           ;; In Jetty 12, 413 responses include an HTML error page body
+           (is (re-find #"Payload Too Large" (:body response)))))
        (testing "posting data within the configured limit succeeds"
          (let [response (post-request port smaller-post-data)]
            (is (= 200 (:status response)))

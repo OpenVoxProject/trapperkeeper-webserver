@@ -102,9 +102,12 @@
 (deftest normalize-uri-with-overlong-utf8-chars-tests
   (testing (str "utf-8 characters with overlong encodings are substituted "
                 "with replacement characters")
-    ;; These are explicitly handled by Jetty as of 9.4.23
-    (is (= "À®" (normalize-uri-path-for-string "%C0%AE")))
-    (is (= "/foo/À®/À®" (normalize-uri-path-for-string "/foo/%C0%AE/%C0%AE")))))
+    ;; In Jetty 12, invalid/overlong UTF-8 sequences are replaced with
+    ;; the Unicode replacement character (U+FFFD) instead of literal bytes.
+    ;; This achieves the same security goal as the old behavior - preventing
+    ;; overlong encodings from being decoded as path traversal characters.
+    (is (= "��" (normalize-uri-path-for-string "%C0%AE")))
+    (is (= "/foo/��/��" (normalize-uri-path-for-string "/foo/%C0%AE/%C0%AE")))))
 
 (deftest normalize-uris-with-redundant-slashes-tests
   (testing "uris with redundant slashes are removed"

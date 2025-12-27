@@ -1,5 +1,5 @@
 (ns puppetlabs.trapperkeeper.services.webrouting.webrouting-service-handlers-test
-  (:import (org.eclipse.jetty.server Response)
+  (:import (jakarta.servlet.http HttpServletResponse)
            (servlet SimpleServlet))
   (:require [clojure.test :refer :all]
             [schema.test :as schema-test]
@@ -234,5 +234,5 @@
                               (is (= 200 status))
                               (is (= "yep" body))
                               (is (= 1 (count @handler-args)))
-                              ;; response is included by default
-                              (is (instance? Response (-> @handler-args first :response))))))))
+                              ;; response is included by default (HttpServletResponse in Jetty 12 ee10)
+                              (is (instance? HttpServletResponse (-> @handler-args first :response))))))))
