@@ -6,43 +6,40 @@
             [puppetlabs.trapperkeeper.services.protocols.filesystem-watch-service
              :as watch-protocol]
             [puppetlabs.trapperkeeper.services.webserver.jetty-config :as config]
-            [puppetlabs.trapperkeeper.services.webserver.jetty-websockets :as websockets]
             [puppetlabs.trapperkeeper.services.webserver.normalized-uri-helpers
              :as normalized-uri-helpers]
             [ring.util.codec :as codec]
-            [ring.util.servlet :as servlet]
+            [ring.util.jakarta.servlet :as servlet]
             [schema.core :as schema])
 
   (:import (clojure.lang Atom)
            (com.puppetlabs.ssl_utils SSLUtils)
-           (com.puppetlabs.trapperkeeper.services.webserver.jetty.utils InternalSslContextFactory MDCRequestLogHandler)
+           (com.puppetlabs.trapperkeeper.services.webserver.jetty.utils InternalSslContextFactory MDCHandler)
            (java.lang.management ManagementFactory)
            (java.net URI)
            (java.security Security)
            (java.util.concurrent TimeoutException ExecutionException)
-           (javax.servlet Servlet ServletContextListener)
-           (javax.servlet.http HttpServletResponse)
+           (jakarta.servlet Servlet ServletContextListener)
+           (jakarta.servlet.http HttpServletResponse)
            (org.eclipse.jetty.client HttpClient RedirectProtocolHandler)
-           (org.eclipse.jetty.client.dynamic HttpClientTransportDynamic)
-           (org.eclipse.jetty.client.http HttpClientConnectionFactory)
+           (org.eclipse.jetty.client.transport HttpClientTransportDynamic HttpClientConnectionFactory)
            (org.eclipse.jetty.http HttpMethod MimeTypes UriCompliance)
            (org.eclipse.jetty.io ClientConnectionFactory$Info ClientConnector)
            (org.eclipse.jetty.jmx MBeanContainer)
-           (org.eclipse.jetty.proxy ProxyServlet)
-           (org.eclipse.jetty.server AbstractConnectionFactory ConnectionFactory CustomRequestLog Handler HttpConfiguration
-                                     HttpConnectionFactory Request
-                                     SecureRequestCustomizer Server ServerConnector Slf4jRequestLogWriter SymlinkAllowedResourceAliasChecker)
+           (org.eclipse.jetty.ee10.proxy ProxyServlet)
+           (org.eclipse.jetty.server AbstractConnectionFactory ConnectionFactory CustomRequestLog Handler Handler$Wrapper Handler$Sequence HttpConfiguration
+                                     HttpConnectionFactory Request Response
+                                     SecureRequestCustomizer Server ServerConnector Slf4jRequestLogWriter)
+           (org.eclipse.jetty.server AllowedResourceAliasChecker)
            (org.eclipse.jetty.server.handler ContextHandler
-                                             ContextHandlerCollection HandlerCollection
-                                             HandlerWrapper StatisticsHandler)
+                                             ContextHandlerCollection GracefulHandler)
            (org.eclipse.jetty.server.handler.gzip GzipHandler)
-           (org.eclipse.jetty.servlet DefaultServlet ServletContextHandler ServletHolder)
-           (org.eclipse.jetty.util BlockingArrayQueue URIUtil)
-           (org.eclipse.jetty.util.resource Resource)
+           (org.eclipse.jetty.ee10.servlet DefaultServlet ServletContextHandler ServletContextRequest ServletContextResponse ServletHolder)
+           (org.eclipse.jetty.util BlockingArrayQueue Callback URIUtil)
+           (org.eclipse.jetty.util.resource ResourceFactory)
            (org.eclipse.jetty.util.ssl SslContextFactory$Client SslContextFactory$Server)
            (org.eclipse.jetty.util.thread QueuedThreadPool)
-           (org.eclipse.jetty.webapp WebAppContext)
-           (org.eclipse.jetty.websocket.server.config JettyWebSocketServletContainerInitializer)))
+           (org.eclipse.jetty.ee10.webapp WebAppContext)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; JDK SecurityProvider Hack
@@ -128,8 +125,6 @@
 (def RingEndpoint
   {:type     (schema/eq :ring)})
 
-(def WebsocketEndpoint
-  {:type     (schema/eq :websocket)})
 
 (def ServletEndpoint
   {:type     (schema/eq :servlet)
@@ -149,7 +144,6 @@
   (schema/conditional
     #(-> % :type (= :context)) ContextEndpoint
     #(-> % :type (= :ring)) RingEndpoint
-    #(-> % :type (= :websocket)) WebsocketEndpoint
     #(-> % :type (= :servlet)) ServletEndpoint
     #(-> % :type (= :war)) WarEndpoint
     #(-> % :type (= :proxy)) ProxyEndpoint))
@@ -332,7 +326,7 @@
                       ;; UriCompliance.Violation.AMBIGUOUS_PATH_SEGMENT, UriCompliance.Violation.AMBIGUOUS_EMPTY_SEGMENT,
                       ;; UriCompliance.Violation.AMBIGUOUS_PATH_SEPARATOR, UriCompliance.Violation.AMBIGUOUS_PATH_ENCODING
                       ;; and UriCompliance.Violation.UTF16_ENCODINGS
-                      ;; https://www.eclipse.org/jetty/javadoc/jetty-10/org/eclipse/jetty/http/UriCompliance.html#LEGACY
+                      ;; https://www.eclipse.org/jetty/javadoc/jetty-12/org/eclipse/jetty/http/UriCompliance.html#LEGACY
                       (.setUriCompliance UriCompliance/LEGACY))]
     (when request-header-size
       (.setRequestHeaderSize http-config request-header-size))
@@ -481,17 +475,14 @@
   "Build up a list of mime types that should not be candidates for
   gzip compression in responses."
   []
-  (->
-    ;; This code is ported from Jetty 9.0.5's GzipFilter class.  In
-    ;; Jetty 7, this behavior was the default for GzipHandler as well
-    ;; as GzipFilter, but in Jetty 9.0.5 the GzipHandler no longer
-    ;; includes this, so we need to do it by hand.
-    (filter #(or (.startsWith % "image/")
-                 (.startsWith % "audio/")
-                 (.startsWith % "video/"))
-            (MimeTypes/getKnownMimeTypes))
-    (conj "application/compress" "application/zip" "application/gzip" "text/event-stream")
-    (into-array)))
+  ;; In Jetty 12, MimeTypes API changed. We use getMimeMap() from DEFAULTS
+  ;; to get known mime types and filter for binary content types.
+  (let [binary-types (filter #(or (.startsWith ^String % "image/")
+                                  (.startsWith ^String % "audio/")
+                                  (.startsWith ^String % "video/"))
+                             (keys (.getMimeMap (MimeTypes/DEFAULTS))))
+        all-types (concat binary-types ["application/compress" "application/zip" "application/gzip" "text/event-stream"])]
+    (into-array String all-types)))
 
 (defn- gzip-handler
   "Given a handler, wrap it with a GzipHandler that will compress the response
@@ -510,7 +501,7 @@
   [webserver-context :- ServerContext
    ^ContextHandler handler :- ContextHandler
    enable-trailing-slash-redirect? :- schema/Bool]
-  (.setAllowNullPathInfo handler (not enable-trailing-slash-redirect?))
+  (.setAllowNullPathInContext handler (not enable-trailing-slash-redirect?))
   (.addHandler (:handlers webserver-context) handler)
   ;; If this handler is being added after the server has been started, we
   ;; need to mark the handler as "managed" so that the server will stop the
@@ -524,16 +515,33 @@
   handler)
 
 (defn- ring-handler
-  "Returns an Jetty Handler implementation for the given Ring handler."
+  "Returns a Jetty Handler implementation for the given Ring handler."
   [handler]
-  (proxy [HandlerWrapper] []
-    (handle [_ ^Request base-request request response]
-      (let [request-map  (assoc (servlet/build-request-map request)
-                           :response response)
-            response-map (handler request-map)]
-        (when response-map
-          (servlet/update-servlet-response response response-map)
-          (.setHandled base-request true))))))
+  (proxy [Handler$Wrapper] []
+    (handle [^Request request ^Response response ^Callback callback]
+      (try
+        ;; In Jetty 12 EE10, we need to get the servlet request from the wrapped request
+        ;; When inside a ServletContextHandler, request is a ServletContextRequest
+        (let [servlet-ctx-request (Request/as request org.eclipse.jetty.ee10.servlet.ServletContextRequest)
+              servlet-api-request (when servlet-ctx-request
+                                    (.getServletApiRequest servlet-ctx-request))
+              servlet-ctx-response (Response/as response org.eclipse.jetty.ee10.servlet.ServletContextResponse)
+              servlet-api-response (when servlet-ctx-response
+                                     (.getServletApiResponse servlet-ctx-response))]
+          (if (and servlet-api-request servlet-api-response)
+            (let [request-map  (servlet/build-request-map servlet-api-request)
+                  response-map (handler request-map)]
+              (when response-map
+                (servlet/update-servlet-response servlet-api-response response-map))
+              (.succeeded callback)
+              true)
+            ;; If we're not in a servlet context, we can't process the request
+            (do
+              (Response/writeError request response callback 500 "Ring handler requires servlet context")
+              true)))
+        (catch Throwable t
+          (Response/writeError request response callback t)
+          true)))))
 
 (schema/defn ^:always-validate
   proxy-servlet :- ProxyServlet
@@ -620,14 +628,18 @@
 (schema/defn ^:always-validate max-request-body-size-handler*
   [handler :- Handler
    max-size :- schema/Int]
-  (proxy [HandlerWrapper] []
-    (handle [target ^Request base-request request response]
-      (let [request-size (.getContentLength base-request)]
+  (proxy [Handler$Wrapper] []
+    (handle [^Request request ^Response response ^Callback callback]
+      ;; In Jetty 12, get content length from headers
+      (let [content-length-str (-> request (.getHeaders) (.get "Content-Length"))
+            request-size (if (and content-length-str (not (empty? content-length-str)))
+                           (Long/parseLong content-length-str)
+                           0)]
         (if (> request-size max-size)
           (do
-            (.setStatus response HttpServletResponse/SC_REQUEST_ENTITY_TOO_LARGE)
-            (.setHandled base-request true))
-          (.handle handler target base-request request response))))))
+            (Response/writeError request response callback HttpServletResponse/SC_REQUEST_ENTITY_TOO_LARGE)
+            true)
+          (.handle handler request response callback))))))
 
 (schema/defn ^:always-validate max-request-body-size-handler
   "Wrap a max-request-body-size handler around the supplied handler.  The
@@ -644,11 +656,12 @@
 
 (schema/defn ^:always-validate
   initialize-context :- ServerContext
-  "Create a webserver-context which contains a HandlerCollection and a
+  "Create a webserver-context which contains a Handler.Sequence and a
   ContextHandlerCollection which can accept the addition of new handlers
   before the webserver is started."
   []
-  (let [^ContextHandlerCollection chc (ContextHandlerCollection.)]
+  ;; In Jetty 12, ContextHandlerCollection requires a varargs array of ContextHandler
+  (let [^ContextHandlerCollection chc (ContextHandlerCollection. (into-array ContextHandler []))]
     {:handlers chc
      :state (atom {:endpoints {}
                    :mbean-container nil
@@ -688,7 +701,7 @@
         (log/error e (i18n/trs "Web server failed to shut down gracefully in configured timeout period ({0}); cancelling remaining requests."
                                (.getStopTimeout server))))
       ;; This exception handling was added since we currently manually stop handlers within pcp-broker
-      ;; for debugging purposes there - on shutdown if Jetty 10 sees a STOPPED handler it throws an
+      ;; for debugging purposes there - on shutdown if Jetty sees a STOPPED handler it throws an
       ;; ExecutionException with a IllegalStateException as it's cause and if unhandled shutdown
       ;; stops and the server goes into a FAILED state
       (catch ExecutionException e
@@ -743,9 +756,10 @@
                                   webserver-context
                                   options))
         ^Server s             (create-server webserver-context config)
-        ^HandlerCollection hc (HandlerCollection.)
+        ;; In Jetty 12, Handler.Sequence requires handlers array or list
+        ^Handler$Sequence hc  (Handler$Sequence. (into-array Handler []))
         logger (config/maybe-init-log-handler options)]
-    (.setHandlers hc (into-array Handler [(:handlers webserver-context)]))
+    (.addHandler hc (:handlers webserver-context))
     (let [shutdown-timeout (* 1000 (:shutdown-timeout-seconds options config/default-shutdown-timeout-seconds))
           maybe-zipped (if (:gzip-enable options true)
                          (gzip-handler hc)
@@ -757,14 +771,12 @@
                                    max-size)
                                   maybe-zipped)
           maybe-logged (if logger
-                         (doto (MDCRequestLogHandler.)
-                           (.setHandler maybe-size-restricted))
+                         (MDCHandler. maybe-size-restricted)
                          maybe-size-restricted)
-          statistics-handler (if (or (nil? shutdown-timeout) (pos? shutdown-timeout))
-                               (doto (StatisticsHandler.)
-                                 (.setHandler maybe-logged))
-                               maybe-logged)]
-      (.setHandler s statistics-handler)
+          graceful-handler (if (or (nil? shutdown-timeout) (pos? shutdown-timeout))
+                             (GracefulHandler. maybe-logged)
+                             maybe-logged)]
+      (.setHandler s graceful-handler)
       (if logger
         (do
           (log/info (i18n/trs "Using specified access logging"))
@@ -792,10 +804,12 @@
         (throw e)))
     webserver-context))
 
-(schema/defn ^:always-validate
+(schema/defn
   add-context-handler :- ContextHandler
-  "Add a static content context handler (allow for customization of the context handler through javax.servlet.ServletContextListener implementations)"
-  ([webserver-context base-path context-path]
+  "Add a static content context handler (allow for customization of the context handler through jakarta.servlet.ServletContextListener implementations)"
+  ([webserver-context :- ServerContext
+    base-path :- schema/Str
+    context-path :- schema/Str]
    (add-context-handler webserver-context base-path context-path nil {:follow-links? false
                                                                       :enable-trailing-slash-redirect? false}))
   ([webserver-context :- ServerContext
@@ -803,13 +817,16 @@
     context-path :- schema/Str
     context-listeners :- (schema/maybe [ServletContextListener])
     options]
-   (let [handler (ServletContextHandler. nil context-path ServletContextHandler/NO_SESSIONS)
+   ;; In Jetty 12, ServletContextHandler no longer takes parent Container in constructor
+   (let [handler (doto (ServletContextHandler. context-path ServletContextHandler/NO_SESSIONS)
+                   (.setContextPath context-path))
          follow-links? (:follow-links? options)
          enable-trailing-slash-redirect? (:enable-trailing-slash-redirect? options)
          normalize-request-uri? (:normalize-request-uri? options)]
-     (.setBaseResource handler (Resource/newResource ^String base-path))
+     (.setBaseResource handler (.newResource (ResourceFactory/root) ^String base-path))
+     ;; In Jetty 12, ApproveAliases was removed - use AllowedResourceAliasChecker instead
      (if follow-links?
-       (.setAliasChecks handler (list (SymlinkAllowedResourceAliasChecker. handler)))
+       (.addAliasCheck handler (AllowedResourceAliasChecker. handler))
        (.clearAliasChecks handler))
      ;; register servlet context listeners (if any)
      (when-not (nil? context-listeners)
@@ -820,36 +837,36 @@
         handler))
      (add-handler webserver-context handler enable-trailing-slash-redirect?))))
 
+(defn- ring-servlet
+  "Creates a servlet that wraps a Ring handler and includes the Jetty Response
+   in the request map under the :response key for compatibility with code that
+   needs access to the underlying Jetty response object.
+   Returns a 404 response if the handler returns nil."
+  [handler]
+  (proxy [jakarta.servlet.http.HttpServlet] []
+    (service [^jakarta.servlet.http.HttpServletRequest request
+              ^jakarta.servlet.http.HttpServletResponse response]
+      (let [request-map (-> (servlet/build-request-map request)
+                            (assoc :response response))
+            response-map (handler request-map)]
+        (servlet/update-servlet-response
+          response
+          (or response-map {:status 404}))))))
+
 (schema/defn ^:always-validate
   add-ring-handler :- ContextHandler
+  "Adds a Ring handler to the webserver. Uses a servlet wrapper to properly
+   integrate Ring handlers with Jetty 12's ee10 servlet environment."
   [webserver-context :- ServerContext
    handler :- (schema/pred ifn? 'ifn?)
    path :- schema/Str
    enable-trailing-slash-redirect? :- schema/Bool
    normalize-request-uri? :- schema/Bool]
-  (let [handler (normalized-uri-helpers/handler-maybe-wrapped-with-normalized-uri
-                 (ring-handler handler)
-                 normalize-request-uri?)
+  (let [servlet (ring-servlet handler)
         path (if (= "" path) "/" path)
         ctxt-handler (doto (ServletContextHandler. ServletContextHandler/NO_SESSIONS)
                        (.setContextPath path)
-                       (.insertHandler handler))]
-    (add-handler webserver-context ctxt-handler enable-trailing-slash-redirect?)))
-
-(schema/defn ^:always-validate
-  add-websocket-handler :- ContextHandler
-  [webserver-context :- ServerContext
-   handlers :- websockets/WebsocketHandlers
-   path :- schema/Str
-   enable-trailing-slash-redirect? :- schema/Bool
-   normalize-request-uri? :- schema/Bool]
-  (let [servlet (websockets/JettyWebSocketServletInstance handlers)
-        ctxt-handler (doto (ServletContextHandler. ServletContextHandler/SESSIONS)
-                       (.setContextPath path)
-                       (.setServer (:server webserver-context)))
-        holder (ServletHolder. servlet)]
-    (JettyWebSocketServletContainerInitializer/configure ctxt-handler nil)
-    (.addServlet ctxt-handler holder "/*")
+                       (.addServlet (ServletHolder. servlet) "/*"))]
     (when normalize-request-uri?
       (normalized-uri-helpers/add-normalized-uri-filter-to-servlet-handler!
        ctxt-handler))
@@ -1148,24 +1165,6 @@
         normalize-request-uri (get options :normalize-request-uri false)]
     (register-endpoint! state endpoint-map path)
     (add-ring-handler s handler path enable-redirect normalize-request-uri)))
-
-(schema/defn ^:always-validate add-websocket-handler!
-  [context
-   handlers :- websockets/WebsocketHandlers
-   path :- schema/Str
-   options :- CommonOptions]
-  (let [server-id     (:server-id options)
-        s             (get-server-context context server-id)
-        state         (:state s)
-        endpoint-map  {:type     :websocket}
-        enable-redirect  (get options :redirect-if-no-trailing-slash false)
-        normalize-request-uri (get options :normalize-request-uri false)]
-    (register-endpoint! state endpoint-map path)
-    (add-websocket-handler s
-                           handlers
-                           path
-                           enable-redirect
-                           normalize-request-uri)))
 
 (schema/defn ^:always-validate add-servlet-handler!
   [context servlet path options :- ServletHandlerOptions]

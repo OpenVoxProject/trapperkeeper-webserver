@@ -1,16 +1,41 @@
 (ns puppetlabs.trapperkeeper.services.webserver.normalized-uri-helpers
-  (:require [puppetlabs.i18n.core :as i18n]
-            [ring.util.servlet :as servlet]
+  (:require [clojure.string :as str]
+            [puppetlabs.i18n.core :as i18n]
+            [ring.util.jakarta.servlet :as servlet]
             [schema.core :as schema])
   (:import (com.puppetlabs.trapperkeeper.services.webserver.jetty.utils
              HttpServletRequestWithAlternateRequestUri)
+           (java.nio.charset StandardCharsets)
            (java.util EnumSet)
-           (javax.servlet DispatcherType Filter)
-           (javax.servlet.http HttpServletRequest HttpServletResponse)
-           (org.eclipse.jetty.server Request)
-           (org.eclipse.jetty.server.handler AbstractHandler HandlerWrapper)
-           (org.eclipse.jetty.servlet FilterHolder ServletContextHandler)
-           (org.eclipse.jetty.util URIUtil)))
+           (jakarta.servlet DispatcherType Filter)
+           (jakarta.servlet.http HttpServletRequest HttpServletResponse)
+           (org.eclipse.jetty.http HttpStatus)
+           (org.eclipse.jetty.io Content$Sink)
+           (org.eclipse.jetty.server Handler Handler$Wrapper Request Response)
+           (org.eclipse.jetty.ee10.servlet FilterHolder ServletContextHandler)
+           (org.eclipse.jetty.util Callback URIUtil)))
+
+(defn- contains-relative-segment?
+  "Check if a decoded URI path contains relative path segments (. or ..).
+   A segment is considered relative if it is exactly '.' or '..' when
+   isolated between slashes (or at start/end of path)."
+  [^String path]
+  (let [segments (str/split path #"/")]
+    (some #(or (= % ".") (= % "..")) segments)))
+
+(defn- normalize-uri-path-str
+  "Normalize a URI path string. Returns the normalized path or throws
+   IllegalArgumentException if the path contains relative segments."
+  [^String uri-path]
+  ;; Use Jetty's URIUtil.decodePath which handles percent-decoding and strips
+  ;; path parameters (text after semicolons)
+  (let [percent-decoded-uri-path (URIUtil/decodePath uri-path)]
+    ;; Check for relative path segments (. or ..)
+    (if (contains-relative-segment? percent-decoded-uri-path)
+      (throw (IllegalArgumentException.
+               ^String (i18n/trs "Invalid relative path (.. or .) in: {0}"
+                                 percent-decoded-uri-path)))
+      (URIUtil/compactPath percent-decoded-uri-path))))
 
 (schema/defn ^:always-validate normalize-uri-path :- schema/Str
   "Return a 'normalized' version of the uri path represented on the incoming
@@ -32,52 +57,42 @@
 
   3) Compact any repeated forward slash characters in a path."
   [request :- HttpServletRequest]
-  (let [percent-decoded-uri-path (-> request
-                                     (.getRequestURI)
-                                     (URIUtil/decodePath))
-        canonicalized-uri-path (URIUtil/canonicalPath percent-decoded-uri-path)]
-    (if (or (nil? canonicalized-uri-path)
-            (not= (.length percent-decoded-uri-path)
-                  (.length canonicalized-uri-path)))
-      (throw (IllegalArgumentException.
-               ^String (i18n/trs "Invalid relative path (.. or .) in: {0}"
-                                 percent-decoded-uri-path)))
-      (URIUtil/compactPath canonicalized-uri-path))))
+  (normalize-uri-path-str (.getRequestURI request)))
+
+(defn- send-bad-request-response
+  "Send an HTTP 400 Bad Request response with the given message."
+  [^Response response ^Callback callback ^String message]
+  (.setStatus response HttpStatus/BAD_REQUEST_400)
+  (let [bytes (.getBytes message StandardCharsets/UTF_8)]
+    ;; In Jetty 12, use getHeaders().put() to set Content-Length
+    (-> response (.getHeaders) (.put "Content-Length" (str (alength bytes))))
+    (Content$Sink/write response true bytes callback)))
 
 (schema/defn ^:always-validate
-  normalize-uri-handler :- HandlerWrapper
-  "Create a `HandlerWrapper` which provides a normalized request URI on to
-  its downstream handler for an incoming request.  The normalized URI would
-  be returned for a 'getRequestURI' call made by the downstream handler on
-  its incoming HttpServletRequest request parameter.  Normalization is done
-  per the rules described in the `normalize-uri-path` function.  If an error
-  is encountered during request URI normalization, an HTTP 400 (Bad Request)
-  response is returned rather than the request being passed on its downstream
-  handler."
+  normalize-uri-handler :- Handler$Wrapper
+  "Create a `Handler.Wrapper` which validates request URIs and rejects
+  requests with invalid URIs (containing relative path segments like '..'
+  or '.') with an HTTP 400 (Bad Request) response.
+
+  Note: In Jetty 12, this handler operates at the core handler level and
+  validates URIs. For servlet contexts where the request needs to be wrapped
+  with a normalized URI, use `add-normalized-uri-filter-to-servlet-handler!`
+  to add a servlet filter that provides the wrapped HttpServletRequest."
   []
-  (proxy [HandlerWrapper] []
-    (handle [^String target ^Request base-request
-             ^HttpServletRequest request ^HttpServletResponse response]
-      (when-let [handler (proxy-super getHandler)]
-        (if-let [normalized-uri
-                 (try
-                   (normalize-uri-path request)
-                   (catch IllegalArgumentException ex
-                     (do
-                       (servlet/update-servlet-response
-                        response
-                        {:status 400
-                         :body (.getMessage ex)})
-                       (.setHandled base-request true))
-                     nil))]
-          (.handle
-           handler
-           target
-           base-request
-           (HttpServletRequestWithAlternateRequestUri.
-            request
-            normalized-uri)
-           response))))))
+  (proxy [Handler$Wrapper] []
+    (handle [^Request request ^Response response ^Callback callback]
+      (if-let [handler (.getHandler ^Handler$Wrapper this)]
+        (try
+          (let [uri-path (-> request (.getHttpURI) (.getPath))]
+            ;; Validate the URI path - throws if invalid
+            (normalize-uri-path-str uri-path)
+            ;; URI is valid, pass to downstream handler
+            (.handle handler request response callback))
+          (catch IllegalArgumentException ex
+            ;; Invalid URI - return 400 Bad Request
+            (send-bad-request-response response callback (.getMessage ex))
+            true))
+        false))))
 
 (schema/defn ^:always-validate normalized-uri-filter :- Filter
   "Create a servlet filter which provides a normalized request URI on to its
@@ -128,12 +143,14 @@
                 (EnumSet/of DispatcherType/REQUEST))))
 
 (schema/defn ^:always-validate
-  handler-maybe-wrapped-with-normalized-uri :- AbstractHandler
+  handler-maybe-wrapped-with-normalized-uri :- Handler
   "If the supplied `normalize-request-uri?` parameter is 'true', return a
-  handler that normalizes a request uri before passing it on downstream to
-  the supplied handler for an incoming request.  If the supplied
-  `normalize-request-uri?` is 'false', return the supplied handler."
-  [handler :- AbstractHandler
+  handler that validates request URIs and rejects invalid ones.
+
+  Note: In Jetty 12, this wrapper validates URIs at the core handler level.
+  For servlet contexts that need the actual normalized URI passed downstream,
+  also use `add-normalized-uri-filter-to-servlet-handler!` to add a filter."
+  [handler :- Handler
    normalize-request-uri? :- schema/Bool]
   (if normalize-request-uri?
     (doto (normalize-uri-handler)
