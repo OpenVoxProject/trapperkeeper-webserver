@@ -1,21 +1,9 @@
 (def i18n-version "1.0.3")
 (def jetty-10-version "10.0.26")
-(def logback-version "1.3.16")
+(def logback-version "1.5.32")
+;; logback-access 1.4+ (jakarta.servlet) and 2.x dropped Jetty 10 support, so must stay on 1.3.x.
+(def logback-access-version "1.3.16")
 (def slf4j-version "2.0.17")
-
-(require '[clojure.string :as str]
-         '[leiningen.core.main :as main])
-(defn fail-if-logback->1-3!
-  "Fails the build if logback-version is > 1.3.x."
-  [logback-version]
-  (let [[x y] (->> (str/split (str logback-version) #"\.")
-                   (take 2)
-                   (map #(Integer/parseInt %)))]
-    (when (or (> x 1)
-              (and (= x 1) (> y 3)))
-      (main/abort (format "logback-version %s is not supported by Jetty 10. Must be 1.3.x until we update to Jetty 12." logback-version)))))
-
-(fail-if-logback->1-3! logback-version)
 
 (defproject org.openvoxproject/trapperkeeper-webserver-jetty10 "1.1.5-SNAPSHOT"
   :description "A jetty10-based webserver implementation for use with the org.openvoxproject/trapperkeeper service framework."
@@ -53,7 +41,7 @@
                          [org.eclipse.jetty.websocket/websocket-jetty-api ~jetty-10-version]
                          [org.eclipse.jetty.websocket/websocket-jetty-client ~jetty-10-version]
                          
-                         [ch.qos.logback/logback-access ~logback-version]
+                         [ch.qos.logback/logback-access ~logback-access-version]
                          [ch.qos.logback/logback-classic ~logback-version]
                          [ch.qos.logback/logback-core ~logback-version]
                          [clj-time "0.15.2"]
