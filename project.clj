@@ -81,7 +81,7 @@
                          [prismatic/schema "1.4.1"]
                          [ring/ring-codec "1.3.0"]
                          [ring/ring-core "1.14.2"]
-                         [ring/ring-servlet "1.14.2"]]
+                         [ring/ring-servlet "1.15.4"]]
   
   :dependencies [[org.clojure/clojure]
                  [org.clojure/java.jmx]
