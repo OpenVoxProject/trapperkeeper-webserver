@@ -57,7 +57,7 @@
                          [ch.qos.logback/logback-classic ~logback-version]
                          [ch.qos.logback/logback-core ~logback-version]
                          [clj-time "0.15.2"]
-                         [commons-codec "1.20.0"]
+                         [commons-codec "1.21.0"]
                          [commons-io "2.21.0"]
                          [compojure "1.7.2"]
                          [hato "1.0.0"]
