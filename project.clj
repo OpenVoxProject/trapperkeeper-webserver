@@ -67,7 +67,7 @@
                          [org.bouncycastle/bc-fips "1.0.2.6"]
                          [org.bouncycastle/bctls-fips "1.0.19"]
                          [org.flatland/ordered "1.15.12"]
-                         [org.openvoxproject/http-client "2.2.3"]
+                         [org.openvoxproject/http-client "2.2.5"]
                          [org.openvoxproject/i18n ~i18n-version]
                          [org.openvoxproject/kitchensink "3.5.6"]
                          [org.openvoxproject/kitchensink "3.5.6" :classifier "test"]
