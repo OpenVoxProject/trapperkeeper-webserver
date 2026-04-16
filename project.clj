@@ -62,7 +62,7 @@
                          [compojure "1.7.2"]
                          [hato "1.0.0"]
                          [javax.servlet/javax.servlet-api "4.0.1"]
-                         [org.bouncycastle/bcpkix-jdk18on "1.83"]
+                         [org.bouncycastle/bcpkix-jdk18on "1.84"]
                          [org.bouncycastle/bcpkix-fips "1.0.8"]
                          [org.bouncycastle/bc-fips "1.0.2.6"]
                          [org.bouncycastle/bctls-fips "1.0.19"]
