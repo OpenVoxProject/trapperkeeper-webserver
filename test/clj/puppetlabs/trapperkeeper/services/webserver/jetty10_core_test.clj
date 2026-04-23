@@ -8,6 +8,7 @@
    (com.puppetlabs.ssl_utils SSLUtils))
   (:require [clojure.test :refer :all]
             [clojure.java.jmx :as jmx]
+            [ring.middleware.content-length :as content-length]
             [ring.util.response :as rr]
             [puppetlabs.http.client.sync :as http-sync]
             [puppetlabs.kitchensink.core :as ks]
@@ -543,3 +544,101 @@
          (let [response (get-request port)]
            (is (= 200 (:status response)))
            (is (= no-request-body-response (:body response)))))))))
+
+(deftest wrap-gzip-safe-content-length-test
+  (let [wrap-gzip-safe-content-length #'jetty/wrap-gzip-safe-content-length]
+    (testing "removes Content-Length when client accepts gzip"
+      (let [handler (fn [_] {:status 200
+                             :headers {"Content-Type" "text/plain"
+                                       "Content-Length" "1000"}
+                             :body "test"})
+            wrapped (wrap-gzip-safe-content-length handler)
+            request {:headers {"accept-encoding" "gzip, deflate"}}
+            response (wrapped request)]
+        (is (= 200 (:status response)))
+        (is (nil? (get-in response [:headers "Content-Length"]))
+            "Content-Length should be removed when gzip is accepted")
+        (is (= "text/plain" (get-in response [:headers "Content-Type"]))
+            "Other headers should be preserved")))
+
+    (testing "preserves Content-Length when client does not accept gzip"
+      (let [handler (fn [_] {:status 200
+                             :headers {"Content-Type" "text/plain"
+                                       "Content-Length" "1000"}
+                             :body "test"})
+            wrapped (wrap-gzip-safe-content-length handler)
+            request {:headers {"accept-encoding" "deflate"}}
+            response (wrapped request)]
+        (is (= "1000" (get-in response [:headers "Content-Length"]))
+            "Content-Length should be preserved when gzip is not accepted")))
+
+    (testing "handles accept-encoding with multiple formats"
+      (let [handler (fn [_] {:status 200
+                             :headers {"Content-Length" "1000"}
+                             :body "test"})
+            wrapped (wrap-gzip-safe-content-length handler)]
+        (doseq [encoding ["gzip"
+                          "gzip, deflate"
+                          "gzip, deflate, br"
+                          "deflate, gzip"
+                          "br, gzip, deflate"]]
+          (let [request {:headers {"accept-encoding" encoding}}
+                response (wrapped request)]
+            (is (nil? (get-in response [:headers "Content-Length"]))
+                (str "Should remove Content-Length for: " encoding))))))
+
+    (testing "preserves Content-Length when no accept-encoding header"
+      (let [handler (fn [_] {:status 200
+                             :headers {"Content-Type" "text/plain"
+                                       "Content-Length" "1000"}
+                             :body "test"})
+            wrapped (wrap-gzip-safe-content-length handler)
+            request {:headers {}}
+            response (wrapped request)]
+        (is (= "1000" (get-in response [:headers "Content-Length"]))
+            "Content-Length should be preserved when no accept-encoding")))
+
+
+    (testing "handles response without Content-Length"
+      (let [handler (fn [_] {:status 200
+                             :headers {"Content-Type" "text/plain"}
+                             :body "test"})
+            wrapped (wrap-gzip-safe-content-length handler)
+            request {:headers {"accept-encoding" "gzip"}}
+            response (wrapped request)]
+        (is (= 200 (:status response)))
+        (is (nil? (get-in response [:headers "Content-Length"]))
+            "Response without Content-Length should remain unchanged")))
+
+    (testing "handles case-insensitive accept-encoding header"
+      (let [handler (fn [_] {:status 200
+                             :headers {"Content-Type" "text/plain"
+                                       "Content-Length" "1000"}
+                             :body "test"})
+            wrapped (wrap-gzip-safe-content-length handler)]
+        (doseq [encoding ["GZIP" "Gzip" "gZiP" "gzip"]]
+          (let [request {:headers {"accept-encoding" encoding}}
+                response (wrapped request)]
+            (is (nil? (get-in response [:headers "Content-Length"]))
+                (str "Content-Length should be removed for: " encoding))))))
+
+    (testing "handles nil response"
+      (let [handler (fn [_] nil)
+            wrapped (wrap-gzip-safe-content-length handler)
+            request {:headers {"accept-encoding" "gzip"}}
+            response (wrapped request)]
+        (is (nil? response)
+            "nil response should pass through")))
+
+    (testing "integration with wrap-content-length"
+      (let [handler (fn [_] {:status 200
+                             :headers {"Content-Type" "text/plain"}
+                             :body "x"})  ;; 1 byte body
+            ;; Simulate the actual middleware chain
+            wrapped (-> handler
+                        content-length/wrap-content-length
+                        wrap-gzip-safe-content-length)
+            request {:headers {"accept-encoding" "gzip"}}
+            response (wrapped request)]
+        (is (nil? (get-in response [:headers "Content-Length"]))
+            "Content-Length added by wrap-content-length should be removed")))))

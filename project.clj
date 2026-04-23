@@ -80,9 +80,9 @@
                          [org.slf4j/slf4j-api ~slf4j-version]
                          [prismatic/schema "1.4.1"]
                          [ring/ring-codec "1.3.0"]
-                         [ring/ring-core "1.14.2"]
-                         [ring/ring-servlet "1.14.2"]]
-  
+                         [ring/ring-core "1.15.4"]
+                         [ring/ring-servlet "1.15.4"]]
+
   :dependencies [[org.clojure/clojure]
                  [org.clojure/java.jmx]
                  [org.clojure/tools.logging]
@@ -112,6 +112,7 @@
                  [org.slf4j/jul-to-slf4j]
                  [prismatic/schema]
                  [ring/ring-codec]
+                 [ring/ring-core]
                  [ring/ring-servlet]]
 
   :source-paths  ["src"]

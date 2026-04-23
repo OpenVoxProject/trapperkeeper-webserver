@@ -9,6 +9,7 @@
             [puppetlabs.trapperkeeper.services.webserver.jetty10-websockets :as websockets]
             [puppetlabs.trapperkeeper.services.webserver.normalized-uri-helpers
              :as normalized-uri-helpers]
+            [ring.middleware.content-length :as content-length]
             [ring.util.codec :as codec]
             [ring.util.servlet :as servlet]
             [schema.core :as schema])
@@ -523,17 +524,35 @@
               (.start handler)))
   handler)
 
-(defn- ring-handler
-  "Returns an Jetty Handler implementation for the given Ring handler."
+(defn- wrap-gzip-safe-content-length
+  "Remove Content-Length if the response will be gzipped.
+   GzipHandler will set the correct length after compression.
+   This prevents timeouts when Content-Length reflects uncompressed size,
+   but GzipHandler sends compressed data."
   [handler]
-  (proxy [HandlerWrapper] []
-    (handle [_ ^Request base-request request response]
-      (let [request-map  (assoc (servlet/build-request-map request)
-                           :response response)
-            response-map (handler request-map)]
-        (when response-map
-          (servlet/update-servlet-response response response-map)
-          (.setHandled base-request true))))))
+  (fn [request]
+    (let [response (handler request)
+          accept-encoding (.toLowerCase ^String (get-in request [:headers "accept-encoding"] ""))]
+      (if (and response
+               (.contains ^String accept-encoding "gzip")
+               (get-in response [:headers "Content-Length"]))
+        (update response :headers dissoc "Content-Length")
+        response))))
+
+(defn- ring-handler
+  "Returns a Jetty Handler implementation for the given Ring handler."
+  [handler]
+  (let [wrapped-handler (-> handler
+                            content-length/wrap-content-length
+                            wrap-gzip-safe-content-length)]
+    (proxy [HandlerWrapper] []
+      (handle [_ ^Request base-request request response]
+        (let [request-map  (assoc (servlet/build-request-map request)
+                             :response response)
+              response-map (wrapped-handler request-map)]
+          (when response-map
+            (servlet/update-servlet-response response response-map)
+            (.setHandled base-request true)))))))
 
 (schema/defn ^:always-validate
   proxy-servlet :- ProxyServlet
