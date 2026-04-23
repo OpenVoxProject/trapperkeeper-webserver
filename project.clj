@@ -58,7 +58,7 @@
                          [ch.qos.logback/logback-core ~logback-version]
                          [clj-time "0.15.2"]
                          [commons-codec "1.21.0"]
-                         [commons-io "2.21.0"]
+                         [commons-io "2.22.0"]
                          [compojure "1.7.2"]
                          [hato "1.0.0"]
                          [javax.servlet/javax.servlet-api "4.0.1"]
