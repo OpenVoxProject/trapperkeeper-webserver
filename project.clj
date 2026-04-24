@@ -71,7 +71,7 @@
                          [org.openvoxproject/i18n ~i18n-version]
                          [org.openvoxproject/kitchensink "3.5.7"]
                          [org.openvoxproject/kitchensink "3.5.7" :classifier "test"]
-                         [org.openvoxproject/ssl-utils "3.6.3"]
+                         [org.openvoxproject/ssl-utils "3.6.4"]
                          [org.openvoxproject/trapperkeeper "4.3.4"]
                          [org.openvoxproject/trapperkeeper "4.3.4" :classifier "test"]
                          [org.openvoxproject/trapperkeeper-filesystem-watcher "1.5.1"]
