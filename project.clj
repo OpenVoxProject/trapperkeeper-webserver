@@ -52,7 +52,7 @@
                          ;; used in pcp-client
                          [org.eclipse.jetty.websocket/websocket-jetty-api ~jetty-10-version]
                          [org.eclipse.jetty.websocket/websocket-jetty-client ~jetty-10-version]
-                         
+
                          [ch.qos.logback/logback-access ~logback-version]
                          [ch.qos.logback/logback-classic ~logback-version]
                          [ch.qos.logback/logback-core ~logback-version]
@@ -82,7 +82,7 @@
                          [ring/ring-codec "1.3.0"]
                          [ring/ring-core "1.14.2"]
                          [ring/ring-servlet "1.14.2"]]
-  
+
   :dependencies [[org.clojure/clojure]
                  [org.clojure/java.jmx]
                  [org.clojure/tools.logging]
@@ -165,6 +165,7 @@
                                       (condp = (java.lang.Integer/parseInt major)
                                         17 ["-Djava.security.properties==dev-resources/jdk17-fips-security"]
                                         21 ["-Djava.security.properties==dev-resources/jdk21-fips-security"]
+                                        25 ["-Djava.security.properties==dev-resources/jdk25-fips-security"]
                                         (throw unsupported-ex)))}
              :fips [:shared :fips-only]
 
