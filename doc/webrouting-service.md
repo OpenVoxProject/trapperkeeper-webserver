@@ -3,7 +3,7 @@
 This project additionally provides a webrouting service, which acts as a
 wrapper around the Trapperkeeper Webserver Service, also contained in this
 project. This service is for use with the
-[trapperkeeper service framework.](https://github.com/puppetlabs/trapperkeeper)
+[trapperkeeper service framework.](https://github.com/openvoxproject/trapperkeeper)
 
 The Webrouting Service is an optional service that allows you to manage the
 configuration of your web service URLs in a different manner. It is a thin
@@ -37,13 +37,13 @@ these are registered in the clojure namespaces 'puppetlabs.foo' and 'puppetlabs.
 
 To use this service in your trapperkeeper application, simply add this project
 as a dependency in your leiningen project file, and then add the webrouting
-service to your [`bootstrap.cfg`](https://github.com/puppetlabs/trapperkeeper#bootstrapping)
+service to your [`bootstrap.cfg`](https://github.com/openvoxproject/trapperkeeper#bootstrapping)
 file, via:
 
     puppetlabs.trapperkeeper.services.webrouting.webrouting-service/webrouting-service
 
 The webrouting service is configured via the
-[trapperkeeper configuration service](https://github.com/puppetlabs/trapperkeeper#configuration-service).
+[trapperkeeper configuration service](https://github.com/openvoxproject/trapperkeeper#configuration-service).
 Please see [Configuring the Webrouting Service](webrouting-config.md) for information on
 how to configure the webrouting service.
 

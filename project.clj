@@ -1,25 +1,27 @@
 (def i18n-version "1.0.4")
-(def jetty-10-version "10.0.26")
+(def jetty-version "10.0.26")
 (def logback-version "1.3.16")
 (def slf4j-version "2.0.17")
 
 (require '[clojure.string :as str]
          '[leiningen.core.main :as main])
 (defn fail-if-logback->1-3!
-  "Fails the build if logback-version is > 1.3.x."
-  [logback-version]
-  (let [[x y] (->> (str/split (str logback-version) #"\.")
+  "Fails the build if logback-version is > 1.3.x and Jetty major version is 10."
+  [logback-version jetty-version]
+  (let [jetty-major (Integer/parseInt (first (str/split (str jetty-version) #"\.")))
+        [x y] (->> (str/split (str logback-version) #"\.")
                    (take 2)
                    (map #(Integer/parseInt %)))]
-    (when (or (> x 1)
-              (and (= x 1) (> y 3)))
+    (when (and (= jetty-major 10)
+              (or (> x 1)
+                  (and (= x 1) (> y 3))))
       (main/abort (format "logback-version %s is not supported by Jetty 10. Must be 1.3.x until we update to Jetty 12." logback-version)))))
 
-(fail-if-logback->1-3! logback-version)
+(fail-if-logback->1-3! logback-version jetty-version)
 
-(defproject org.openvoxproject/trapperkeeper-webserver-jetty10 "1.1.9-SNAPSHOT"
-  :description "A jetty10-based webserver implementation for use with the org.openvoxproject/trapperkeeper service framework."
-  :url "https://github.com/openvoxproject/trapperkeeper-webserver-jetty10"
+(defproject org.openvoxproject/trapperkeeper-webserver "10.0.0-SNAPSHOT"
+  :description "A jetty-based webserver implementation for use with the org.openvoxproject/trapperkeeper service framework."
+  :url "https://github.com/openvoxproject/trapperkeeper-webserver"
   :license {:name "Apache License, Version 2.0"
             :url "http://www.apache.org/licenses/LICENSE-2.0"}
 
@@ -42,16 +44,16 @@
                          [org.clojure/tools.macro "0.2.2"]
 
                          ;; Jetty Webserver
-                         [org.eclipse.jetty/jetty-jmx ~jetty-10-version]
-                         [org.eclipse.jetty/jetty-proxy ~jetty-10-version]
-                         [org.eclipse.jetty/jetty-server ~jetty-10-version]
-                         [org.eclipse.jetty/jetty-servlet ~jetty-10-version]
-                         [org.eclipse.jetty/jetty-servlets ~jetty-10-version]
-                         [org.eclipse.jetty/jetty-webapp ~jetty-10-version]
-                         [org.eclipse.jetty.websocket/websocket-jetty-server ~jetty-10-version]
+                         [org.eclipse.jetty/jetty-jmx ~jetty-version]
+                         [org.eclipse.jetty/jetty-proxy ~jetty-version]
+                         [org.eclipse.jetty/jetty-server ~jetty-version]
+                         [org.eclipse.jetty/jetty-servlet ~jetty-version]
+                         [org.eclipse.jetty/jetty-servlets ~jetty-version]
+                         [org.eclipse.jetty/jetty-webapp ~jetty-version]
+                         [org.eclipse.jetty.websocket/websocket-jetty-server ~jetty-version]
                          ;; used in pcp-client
-                         [org.eclipse.jetty.websocket/websocket-jetty-api ~jetty-10-version]
-                         [org.eclipse.jetty.websocket/websocket-jetty-client ~jetty-10-version]
+                         [org.eclipse.jetty.websocket/websocket-jetty-api ~jetty-version]
+                         [org.eclipse.jetty.websocket/websocket-jetty-client ~jetty-version]
 
                          [ch.qos.logback/logback-access ~logback-version]
                          [ch.qos.logback/logback-classic ~logback-version]

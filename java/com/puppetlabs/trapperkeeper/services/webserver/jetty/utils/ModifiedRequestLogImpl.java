@@ -1,4 +1,4 @@
-package com.puppetlabs.trapperkeeper.services.webserver.jetty10.utils;
+package com.puppetlabs.trapperkeeper.services.webserver.jetty.utils;
 
 import ch.qos.logback.access.jetty.JettyServerAdapter;
 import ch.qos.logback.access.jetty.RequestLogImpl;
@@ -22,7 +22,7 @@ public class ModifiedRequestLogImpl extends RequestLogImpl {
 
     /**
      * log - override the log funciton in RequestLogImpl for the sole purpose of changing the type of the `makeJettyServerAdapter`
-     *       to make it compatible with jetty10.
+     *       to make it compatible with jetty.
      * @param jettyRequest
      * @param jettyResponse
      */

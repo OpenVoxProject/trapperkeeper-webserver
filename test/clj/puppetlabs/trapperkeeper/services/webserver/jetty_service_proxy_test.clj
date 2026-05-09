@@ -1,7 +1,7 @@
-(ns puppetlabs.trapperkeeper.services.webserver.jetty10-service-proxy-test
+(ns puppetlabs.trapperkeeper.services.webserver.jetty-service-proxy-test
   (:import [java.net URI])
   (:require [clojure.test :refer :all]
-            [puppetlabs.trapperkeeper.services.webserver.jetty10-service :refer :all]
+            [puppetlabs.trapperkeeper.services.webserver.jetty-service :refer :all]
             [puppetlabs.trapperkeeper.testutils.webserver.common :refer :all]
             [puppetlabs.trapperkeeper.app :refer [get-service]]
             [puppetlabs.trapperkeeper.services :refer [service]]
@@ -97,7 +97,7 @@
   (let [proxy-path "/hello-proxy"]
     `(with-test-logging
       (with-app-with-config proxy-target-app#
-        [jetty10-service]
+        [jetty-service]
         {:webserver ~target}
         (let [target-webserver# (get-service proxy-target-app# :WebserverService)]
           (add-ring-handler
@@ -113,11 +113,11 @@
                                               ~proxy-opts
                                               ~proxy-path)]
             (with-app-with-config proxy-app#
-              [jetty10-service proxy-service#]
+              [jetty-service proxy-service#]
               {:webserver ~proxy}
               ~@body))
           (with-app-with-config proxy-app#
-            [jetty10-service]
+            [jetty-service]
             {:webserver ~proxy}
             (let [proxy-webserver# (get-service proxy-app# :WebserverService)]
               (if ~proxy-opts
