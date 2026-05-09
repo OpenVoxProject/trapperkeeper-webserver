@@ -1,4 +1,4 @@
-(ns puppetlabs.trapperkeeper.services.webserver.jetty10-service
+(ns puppetlabs.trapperkeeper.services.webserver.jetty-service
   (:require
     [clojure.pprint :refer [pprint]]
     [clojure.tools.logging :as log]
@@ -10,8 +10,8 @@
                                                service-context]]
     [puppetlabs.trapperkeeper.services.protocols.filesystem-watch-service
      :as watch-protocol]
-    [puppetlabs.trapperkeeper.services.webserver.jetty10-config :as config]
-    [puppetlabs.trapperkeeper.services.webserver.jetty10-core :as core]))
+    [puppetlabs.trapperkeeper.services.webserver.jetty-config :as config]
+    [puppetlabs.trapperkeeper.services.webserver.jetty-core :as core]))
 
 ;; TODO: this should probably be moved to a separate jar that can be used as
 ;; a dependency for all webserver service implementations
@@ -27,8 +27,8 @@
   (log-registered-endpoints [this] [this server-id])
   (join [this] [this server-id]))
 
-(defservice jetty10-service
-  "Provides a Jetty 10 web server as a service"
+(defservice jetty-service
+  "Provides a Jetty web server as a service"
   WebserverService
   {:required [ConfigService]
    :optional [FilesystemWatchService]}
@@ -52,7 +52,7 @@
                _ (log/debug (i18n/trs "Jetty server(s) starting with config: {0}" config))
                started-context (core/start! context config)]
            ;; Log started server(s) configuration(s) for debugging purposes
-           (doseq [started-server-context (:jetty10-servers started-context)]
+           (doseq [started-server-context (:jetty-servers started-context)]
              ;; Server context data is in the form {:servername {:handlers <handlers>, ... }}
              (let [server-name (name (first started-server-context))
                    started-server ^org.eclipse.jetty.server.Server (:server (second started-server-context))
@@ -68,7 +68,7 @@
            (if-let [filesystem-watcher-service
                     (maybe-get-service this :FilesystemWatchService)]
              (let [watcher (watch-protocol/create-watcher filesystem-watcher-service {:recursive false})]
-               (doseq [server (:jetty10-servers started-context)]
+               (doseq [server (:jetty-servers started-context)]
                  (when-let [ssl-context-factory (-> server
                                                     second
                                                     :state
@@ -80,8 +80,8 @@
 
   (stop [this context]
         (log/info (i18n/trs "Shutting down web server(s)."))
-        (doseq [key (keys (:jetty10-servers context))]
-          (if-let [server (key (:jetty10-servers context))]
+        (doseq [key (keys (:jetty-servers context))]
+          (if-let [server (key (:jetty-servers context))]
             (core/shutdown server)))
         context)
 

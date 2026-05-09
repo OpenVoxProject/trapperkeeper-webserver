@@ -1,4 +1,4 @@
-package com.puppetlabs.trapperkeeper.services.webserver.jetty10.utils;
+package com.puppetlabs.trapperkeeper.services.webserver.jetty.utils;
 
 import ch.qos.logback.access.jetty.JettyModernServerAdapter;
 import org.eclipse.jetty.http.HttpField;

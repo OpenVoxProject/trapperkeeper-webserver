@@ -1,4 +1,4 @@
-(ns puppetlabs.trapperkeeper.services.webserver.jetty10-config-test
+(ns puppetlabs.trapperkeeper.services.webserver.jetty-config-test
   (:import (clojure.lang ExceptionInfo)
            (java.util Arrays)
            (com.puppetlabs.ssl_utils SSLUtils))
@@ -7,11 +7,11 @@
             [me.raynes.fs :as fs]
             [puppetlabs.ssl-utils.core :as ssl]
             [puppetlabs.kitchensink.core :as ks]
-            [puppetlabs.trapperkeeper.services.webserver.jetty10-config :refer :all]
+            [puppetlabs.trapperkeeper.services.webserver.jetty-config :refer :all]
             [puppetlabs.trapperkeeper.testutils.logging :refer [with-test-logging]]
-            [puppetlabs.trapperkeeper.services.webserver.jetty10-core :as jetty10]
-            [puppetlabs.trapperkeeper.services.webserver.jetty10-service
-             :refer [jetty10-service add-ring-handler]]
+            [puppetlabs.trapperkeeper.services.webserver.jetty-core :as jetty]
+            [puppetlabs.trapperkeeper.services.webserver.jetty-service
+             :refer [jetty-service add-ring-handler]]
             [puppetlabs.trapperkeeper.app :as tk-app]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
             [puppetlabs.trapperkeeper.testutils.webserver.common :refer [http-get]]
