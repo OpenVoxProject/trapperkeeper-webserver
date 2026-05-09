@@ -19,7 +19,7 @@
 
 (fail-if-logback->1-3! logback-version jetty-version)
 
-(defproject org.openvoxproject/trapperkeeper-webserver "10.0.0-SNAPSHOT"
+(defproject org.openvoxproject/trapperkeeper-webserver "10.0.0"
   :description "A jetty-based webserver implementation for use with the org.openvoxproject/trapperkeeper service framework."
   :url "https://github.com/openvoxproject/trapperkeeper-webserver"
   :license {:name "Apache License, Version 2.0"
