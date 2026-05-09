@@ -789,7 +789,8 @@
                                  {:status 200 :body "Hello, World!"})]
         (add-ring-handler ring-handler "/hello")
         (with-open [async-client (async/create-client {})]
-          (let [response (http-client-common/get async-client "http://localhost:8080/hello" {:as :text})]
+          (let [response (http-client-common/get async-client "http://localhost:8080/hello"
+                                                 {:as :text :headers {"Accept-Encoding" "identity"}})]
             @in-request-handler
             (tk-app/stop app)
             (is (= (:status @response) 200))
