@@ -3,7 +3,7 @@
 (def logback-version "1.5.32")
 (def slf4j-version "2.0.17")
 
-(defproject org.openvoxproject/trapperkeeper-webserver "10.0.1-SNAPSHOT"
+(defproject org.openvoxproject/trapperkeeper-webserver "12.0.0-SNAPSHOT"
   :description "A jetty-based webserver implementation for use with the org.openvoxproject/trapperkeeper service framework."
   :url "https://github.com/openvoxproject/trapperkeeper-webserver"
   :license {:name "Apache License, Version 2.0"
