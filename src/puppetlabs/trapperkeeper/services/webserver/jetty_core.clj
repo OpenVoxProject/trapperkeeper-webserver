@@ -33,7 +33,7 @@
            (org.eclipse.jetty.server.handler ContextHandler
                                              ContextHandlerCollection GracefulHandler)
            (org.eclipse.jetty.server.handler.gzip GzipHandler)
-           (org.eclipse.jetty.ee10.servlet DefaultServlet ServletContextHandler ServletContextRequest ServletContextResponse ServletHolder)
+           (org.eclipse.jetty.ee10.servlet DefaultServlet ServletContextHandler ServletHolder)
            (org.eclipse.jetty.util BlockingArrayQueue Callback URIUtil)
            (org.eclipse.jetty.util.resource ResourceFactory)
            (org.eclipse.jetty.util.ssl SslContextFactory$Client SslContextFactory$Server)
@@ -497,35 +497,6 @@
               (.manage (:handlers webserver-context) handler)
               (.start handler)))
   handler)
-
-(defn- ring-handler
-  "Returns a Jetty Handler implementation for the given Ring handler."
-  [handler]
-  (proxy [Handler$Wrapper] []
-    (handle [^Request request ^Response response ^Callback callback]
-      (try
-        ;; In Jetty 12 EE10, we need to get the servlet request from the wrapped request
-        ;; When inside a ServletContextHandler, request is a ServletContextRequest
-        (let [servlet-ctx-request (Request/as request org.eclipse.jetty.ee10.servlet.ServletContextRequest)
-              servlet-api-request (when servlet-ctx-request
-                                    (.getServletApiRequest servlet-ctx-request))
-              servlet-ctx-response (Response/as response org.eclipse.jetty.ee10.servlet.ServletContextResponse)
-              servlet-api-response (when servlet-ctx-response
-                                     (.getServletApiResponse servlet-ctx-response))]
-          (if (and servlet-api-request servlet-api-response)
-            (let [request-map  (servlet/build-request-map servlet-api-request)
-                  response-map (handler request-map)]
-              (when response-map
-                (servlet/update-servlet-response servlet-api-response response-map))
-              (.succeeded callback)
-              true)
-            ;; If we're not in a servlet context, we can't process the request
-            (do
-              (Response/writeError request response callback 500 "Ring handler requires servlet context")
-              true)))
-        (catch Throwable t
-          (Response/writeError request response callback t)
-          true)))))
 
 (schema/defn ^:always-validate
   proxy-servlet :- ProxyServlet
