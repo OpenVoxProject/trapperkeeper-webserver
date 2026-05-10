@@ -30,7 +30,6 @@
            (org.eclipse.jetty.server AbstractConnectionFactory ConnectionFactory CustomRequestLog Handler Handler$Wrapper Handler$Sequence HttpConfiguration
                                      HttpConnectionFactory Request Response
                                      SecureRequestCustomizer Server ServerConnector Slf4jRequestLogWriter)
-           (org.eclipse.jetty.server AllowedResourceAliasChecker)
            (org.eclipse.jetty.server.handler ContextHandler
                                              ContextHandlerCollection GracefulHandler)
            (org.eclipse.jetty.server.handler.gzip GzipHandler)
@@ -809,14 +808,17 @@
          enable-trailing-slash-redirect? (:enable-trailing-slash-redirect? options)
          normalize-request-uri? (:normalize-request-uri? options)]
      (.setBaseResource handler (.newResource (ResourceFactory/root) ^String base-path))
-     ;; In Jetty 12, ApproveAliases was removed - use AllowedResourceAliasChecker instead
-     (if follow-links?
-       (.addAliasCheck handler (AllowedResourceAliasChecker. handler))
-       (.clearAliasChecks handler))
+     (.clearAliasChecks handler)
      ;; register servlet context listeners (if any)
      (when-not (nil? context-listeners)
        (dorun (map #(.addEventListener handler %) context-listeners)))
-     (.addServlet handler (ServletHolder. (DefaultServlet.)) "/")
+     ;; Control symlink behavior via DefaultServlet init params. In Jetty 12,
+     ;; DefaultServlet registers alias checkers during init that override any
+     ;; prior clearAliasChecks() call, so we must control it at the servlet level.
+     (let [holder (ServletHolder. (DefaultServlet.))]
+       (.setInitParameter holder "allowSymlinks" (str (boolean follow-links?)))
+       (.setInitParameter holder "allowAliases" (str (boolean follow-links?)))
+       (.addServlet handler holder "/"))
      (when normalize-request-uri?
        (normalized-uri-helpers/add-normalized-uri-filter-to-servlet-handler!
         handler))

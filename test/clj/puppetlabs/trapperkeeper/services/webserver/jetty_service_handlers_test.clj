@@ -93,14 +93,7 @@
                 (is (= (:status response) 200))
                 (is (= (:body response) logback))))))
 
-        ;; Note: In Jetty 12, the symlink/alias handling changed. The Resource API
-        ;; was rewritten and symlinks are resolved at the filesystem level before
-        ;; alias checking occurs. The :follow-links option now controls whether
-        ;; AllowedResourceAliasChecker is added (true) or cleared (false), but
-        ;; this doesn't prevent symlink resolution in Jetty 12's new Resource API.
-        ;; For now, both cases serve the symlink. If blocking symlinks is critical,
-        ;; a custom AliasCheck implementation would be needed.
-        (testing "symlinks behavior when :follow-links is false"
+        (testing "symlinks not served when :follow-links is false"
           (with-app-with-config app
             [jetty-service]
             jetty-plaintext-config
@@ -111,10 +104,8 @@
               (let [response (http-get (str "http://localhost:8080" path "/" resource))]
                 (is (= (:status response) 200))
                 (is (= (:body response) logback)))
-              ;; In Jetty 12, symlinks are resolved by the Resource API before alias checking
               (let [response (http-get (str "http://localhost:8080" path "/" resource-link))]
-                (is (= (:status response) 200))
-                (is (= (:body response) logback))))))
+                (is (= (:status response) 404))))))
 
         (finally
           (Files/delete link))))))
