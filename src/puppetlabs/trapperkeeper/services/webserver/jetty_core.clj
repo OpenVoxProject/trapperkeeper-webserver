@@ -614,11 +614,7 @@
    max-size :- schema/Int]
   (proxy [Handler$Wrapper] []
     (handle [^Request request ^Response response ^Callback callback]
-      ;; In Jetty 12, get content length from headers
-      (let [content-length-str (-> request (.getHeaders) (.get "Content-Length"))
-            request-size (if (and content-length-str (not (empty? content-length-str)))
-                           (Long/parseLong content-length-str)
-                           0)]
+      (let [request-size (.getLength request)]
         (if (> request-size max-size)
           (do
             (Response/writeError request response callback HttpServletResponse/SC_REQUEST_ENTITY_TOO_LARGE)

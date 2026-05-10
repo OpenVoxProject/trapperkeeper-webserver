@@ -543,4 +543,24 @@
        (testing "request with no content-length succeeds when limit configured"
          (let [response (get-request port)]
            (is (= 200 (:status response)))
-           (is (= no-request-body-response (:body response)))))))))
+           (is (= no-request-body-response (:body response)))))
+       (testing "request with malformed content-length does not cause a 500"
+         (let [sock (Socket. "localhost" port)
+               writer (PrintWriter. (.getOutputStream sock) true)
+               request-lines (str "POST / HTTP/1.1\r\n"
+                                  "Host: localhost\r\n"
+                                  "Content-Type: text/plain\r\n"
+                                  "Content-Length: abc\r\n"
+                                  "\r\n"
+                                  "body")]
+           (.setSoTimeout sock 5000)
+           (.println writer request-lines)
+           (let [reader (BufferedReader. (InputStreamReader. (.getInputStream sock)))
+                 status-line (.readLine reader)]
+             (.close sock)
+             (is (some? status-line)
+                 "Server should respond with a status line")
+             ;; Jetty rejects malformed Content-Length at the parser level (400).
+             ;; A 500 would indicate an unhandled exception in our handler.
+             (is (re-find #"^HTTP/1\.1 400" status-line)
+                 "Malformed Content-Length should be rejected by the parser as 400"))))))))
