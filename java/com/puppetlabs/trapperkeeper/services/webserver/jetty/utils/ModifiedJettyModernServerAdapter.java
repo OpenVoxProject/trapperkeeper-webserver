@@ -1,6 +1,6 @@
 package com.puppetlabs.trapperkeeper.services.webserver.jetty.utils;
 
-import ch.qos.logback.access.jetty.JettyModernServerAdapter;
+import ch.qos.logback.access.jetty.JettyServerAdapter;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
@@ -8,7 +8,11 @@ import org.eclipse.jetty.server.Response;
 import java.util.HashMap;
 import java.util.Map;
 
-public class ModifiedJettyModernServerAdapter extends JettyModernServerAdapter {
+/**
+ * Custom JettyServerAdapter for Jetty 12 compatibility.
+ * This may not be needed with logback-access-jetty12 but is kept for compatibility.
+ */
+public class ModifiedJettyModernServerAdapter extends JettyServerAdapter {
     // these are package private in the JettyServerAdapter, unfortunately
     Request request;
     Response response;
@@ -21,16 +25,15 @@ public class ModifiedJettyModernServerAdapter extends JettyModernServerAdapter {
 
     /**
      * buildResponseMap
-     * This is a replacement of the buildResponseLog in JettyModernServerAdapter to
-     * make it compatible with Jetty 10 responses. The provided version of logback-acccess
-     * has a different signature expectation for "getHttpFields" which causes runtime failures.
+     * This is a replacement of the buildResponseLog in JettyServerAdapter to
+     * make it compatible with Jetty 12 responses.
      * @return a map of the headers.
      */
     @Override
     public Map<String, String> buildResponseHeaderMap() {
         Map<String, String> responseHeaderMap = new HashMap<String,String>();
 
-        for (HttpField httpField : this.response.getHttpFields()) {
+        for (HttpField httpField : this.response.getHeaders()) {
             String key = httpField.getName();
             String value = httpField.getValue();
             responseHeaderMap.put(key, value);

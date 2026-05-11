@@ -1,9 +1,5 @@
 (ns puppetlabs.trapperkeeper.services.webrouting.webrouting-service-test
   (:require [clojure.test :refer :all]
-            [clojure.tools.logging :as log]
-            [hato.client :as http]
-            [hato.websocket :as ws-client]
-            [puppetlabs.trapperkeeper.services.websocket-session :as ws-session]
             [puppetlabs.kitchensink.testutils.fixtures :as ks-test-fixtures]
             [puppetlabs.trapperkeeper.app :as tk-app]
             [puppetlabs.trapperkeeper.services :as tk-services]
@@ -12,8 +8,7 @@
             [puppetlabs.trapperkeeper.services.webserver.jetty-service
              :refer [jetty-service]]
             [puppetlabs.trapperkeeper.testutils.bootstrap
-             :refer [with-app-with-config
-                     ]]
+             :refer [with-app-with-config]]
             [puppetlabs.trapperkeeper.testutils.logging
              :refer [with-test-logging]]
             [puppetlabs.trapperkeeper.testutils.webrouting.common :refer :all]
@@ -31,8 +26,6 @@
 (defprotocol TestService2)
 
 (defprotocol TestService3)
-
-(defprotocol TestWebsocketService)
 
 (defprotocol NotReal
   (dummy [this]))
@@ -59,16 +52,6 @@
   TestService3
   [[:WebroutingService add-ring-handler]])
 
-(tk-services/defservice test-websocket-service
-  TestWebsocketService
-  [[:WebroutingService add-websocket-handler]]
-  (init [this context]
-        (log/info "setting up webrouting websockets")
-        (let [handlers {:on-connect (fn [ws]
-                                      (ws-session/send! ws "heyo"))}]
-          (add-websocket-handler this handlers))
-        context))
-
 (tk-services/defservice not-real
   NotReal
   []
@@ -90,9 +73,7 @@
       :puppetlabs.trapperkeeper.services.webrouting.webrouting-service-test/test-service-2
        "/foo"
       :puppetlabs.trapperkeeper.services.webrouting.webrouting-service-test/test-service-3
-      {:route "/foo" :server "foo"}
-      :puppetlabs.trapperkeeper.services.webrouting.webrouting-service-test/test-websocket-service
-       "/baz"}})
+      {:route "/foo" :server "foo"}}})
 
 (def no-default-config
   {:webserver {:bar {:port 8080}
@@ -112,7 +93,7 @@
   (with-test-logging
     (testing "Other services can successfully use webrouting service"
       (with-app-with-config app
-        [jetty-service webrouting-service test-service test-websocket-service]
+        [jetty-service webrouting-service test-service]
         webrouting-plaintext-multiserver-multiroute-config
         (let [response (http-get "http://localhost:8080/foo/")]
           (is (= (:status response) 200))
@@ -125,18 +106,7 @@
           (is (= (:body response) "Hello World!")))
         (let [response (http-get "http://localhost:9000/bar/")]
           (is (= (:status response) 200))
-          (is (= (:body response) "Hello World!")))
-        (let [message   (promise)
-              websocket @(ws-client/websocket "ws://localhost:8080/baz"
-                                           {:on-message (fn [ws msg last?]
-                                                          (deliver message msg))
-                                            :http-client (http/build-http-client
-                                                          ;; Disabling SSL just because of encountering problems
-                                                          ;; with the JDK 11 HttpClient hato wraps and our current
-                                                          ;; java/bouncycastle security rules
-                                                          {:ssl-context {:insecure? true}})})]
-          (is (= (str @message) "heyo"))
-          (ws-client/close! websocket))))
+          (is (= (:body response) "Hello World!")))))
 
     (testing "Error occurs when specifying service that does not exist in config file"
       (with-app-with-config

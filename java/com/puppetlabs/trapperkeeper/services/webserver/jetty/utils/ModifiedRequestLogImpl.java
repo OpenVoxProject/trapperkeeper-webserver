@@ -2,8 +2,10 @@ package com.puppetlabs.trapperkeeper.services.webserver.jetty.utils;
 
 import ch.qos.logback.access.jetty.JettyServerAdapter;
 import ch.qos.logback.access.jetty.RequestLogImpl;
-import ch.qos.logback.access.spi.AccessEvent;
-import ch.qos.logback.access.spi.IAccessEvent;
+import ch.qos.logback.access.jetty.RequestWrapper;
+import ch.qos.logback.access.jetty.ResponseWrapper;
+import ch.qos.logback.access.common.spi.AccessEvent;
+import ch.qos.logback.access.common.spi.IAccessEvent;
 import ch.qos.logback.core.Appender;
 import ch.qos.logback.core.spi.AppenderAttachableImpl;
 import ch.qos.logback.core.spi.FilterReply;
@@ -13,7 +15,8 @@ import org.eclipse.jetty.server.Response;
 import java.util.Iterator;
 
 /**
- * Provide an alternative RequestLogImpl implementation that is compatible with Jetty 10
+ * Provide an alternative RequestLogImpl implementation that is compatible with Jetty 12.
+ * Uses RequestWrapper and ResponseWrapper to convert core Jetty types to servlet types.
  */
 public class ModifiedRequestLogImpl extends RequestLogImpl {
     // unfortunately, this field is private in RequestLogImpl, so we provide our own version of it, and recreate
@@ -29,17 +32,20 @@ public class ModifiedRequestLogImpl extends RequestLogImpl {
     @Override
     public void log(Request jettyRequest, Response jettyResponse) {
         JettyServerAdapter adapter = this.makeJettyServerAdapter(jettyRequest, jettyResponse);
-        IAccessEvent accessEvent = new AccessEvent(this, jettyRequest, jettyResponse, adapter);
-        if (this.getFilterChainDecision((IAccessEvent)accessEvent) != FilterReply.DENY) {
+        // Wrap core Jetty types in servlet wrappers for AccessEvent
+        RequestWrapper requestWrapper = new RequestWrapper(jettyRequest);
+        ResponseWrapper responseWrapper = new ResponseWrapper(jettyResponse);
+        IAccessEvent accessEvent = new AccessEvent(this, requestWrapper, responseWrapper, adapter);
+        if (this.getFilterChainDecision(accessEvent) != FilterReply.DENY) {
             this.aai.appendLoopOnAppenders(accessEvent);
         }
     }
 
     /**
-     * Provide a new JettyServerAdapter that is compatible with Jetty 10.
-     * @param jettyRequest
-     * @param jettyResponse
-     * @return
+     * Provide a new JettyServerAdapter that is compatible with Jetty 12.
+     * @param jettyRequest the Jetty 12 core Request
+     * @param jettyResponse the Jetty 12 core Response
+     * @return a JettyServerAdapter for the request/response pair
      */
     private JettyServerAdapter makeJettyServerAdapter(Request jettyRequest, Response jettyResponse) {
         return new ModifiedJettyModernServerAdapter(jettyRequest, jettyResponse);
@@ -50,6 +56,7 @@ public class ModifiedRequestLogImpl extends RequestLogImpl {
         this.aai.detachAndStopAllAppenders();
         super.stop();
     }
+
     @Override
     public void addAppender(Appender<IAccessEvent> newAppender) {
         aai.addAppender(newAppender);

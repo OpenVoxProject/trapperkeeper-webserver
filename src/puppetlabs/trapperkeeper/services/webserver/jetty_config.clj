@@ -48,7 +48,7 @@
 ;;; override Jetty's defaults for these security-related settings.  In the event
 ;;; that a vulnerability like "POODLE" is announced (where we needed to remove
 ;;; the SSLv3 protocol from the list of allowed protocols), we would need to do
-;;; a release of tk-j9 to address it no matter what.  The choices would then be
+;;; a release of tk-j12 to address it no matter what.  The choices would then be
 ;;; to update our own defaults for security-related settings, or, if we're not
 ;;; imposing our own defaults, to try to upgrade to a new version of Jetty where
 ;;; their implicit defaults reflect the security issue.  The latter is far more

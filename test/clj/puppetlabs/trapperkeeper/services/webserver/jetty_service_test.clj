@@ -164,6 +164,17 @@
       {:as :text}
       :default)))
 
+(deftest ring-handler-nil-response-returns-404
+  (testing "ring handler returning nil results in 404 response"
+    (with-app-with-config app
+      [jetty-service]
+      jetty-plaintext-config
+      (let [s           (tk-app/get-service app :WebserverService)
+            nil-handler (fn [req] nil)]
+        (add-ring-handler s nil-handler "/nil-route")
+        (let [response (http-get "http://localhost:8080/nil-route/")]
+          (is (= 404 (:status response))))))))
+
 (deftest single-server-jmx-cleanup-test
   (testing "no jetty mbeancontainers are registered prior to starting servers"
     (is (empty? (testutils/get-jetty-mbean-object-names))))
@@ -772,7 +783,8 @@
                                  {:status 200 :body "Hello, World!"})]
         (add-ring-handler ring-handler "/hello")
         (with-open [async-client (async/create-client {})]
-          (let [response (http-client-common/get async-client "http://localhost:8080/hello" {:as :text})]
+          (let [response (http-client-common/get async-client "http://localhost:8080/hello"
+                                                 {:as :text :headers {"Accept-Encoding" "identity"}})]
             @in-request-handler
             (tk-app/stop app)
             (is (= (:status @response) 200))

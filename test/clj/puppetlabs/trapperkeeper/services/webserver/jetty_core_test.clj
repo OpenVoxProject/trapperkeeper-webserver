@@ -1,6 +1,6 @@
 (ns puppetlabs.trapperkeeper.services.webserver.jetty-core-test
   (:import
-   (org.eclipse.jetty.server.handler ContextHandlerCollection)
+   (org.eclipse.jetty.server.handler ContextHandler ContextHandlerCollection)
    (java.security KeyStore)
    (java.net SocketTimeoutException Socket)
    (java.io InputStreamReader BufferedReader PrintWriter)
@@ -167,7 +167,7 @@
                        :ssl-context-client-factory nil
                        :ssl-context-server-factory nil}
         webserver-context (fn [state]
-                            {:handlers (ContextHandlerCollection.)
+                            {:handlers (ContextHandlerCollection. (into-array ContextHandler []))
                              :server nil
                              :state (atom (merge default-state state))})]
     (testing "able to associate overrides when overrides not already set"
@@ -534,7 +534,8 @@
        (testing "posting data larger than the configured limit fails with 413"
          (let [response (post-request port bigger-post-data)]
            (is (= 413 (:status response)))
-           (is (= "" (:body response)))))
+           ;; In Jetty 12, 413 responses include an HTML error page body
+           (is (re-find #"Payload Too Large" (:body response)))))
        (testing "posting data within the configured limit succeeds"
          (let [response (post-request port smaller-post-data)]
            (is (= 200 (:status response)))
@@ -542,4 +543,24 @@
        (testing "request with no content-length succeeds when limit configured"
          (let [response (get-request port)]
            (is (= 200 (:status response)))
-           (is (= no-request-body-response (:body response)))))))))
+           (is (= no-request-body-response (:body response)))))
+       (testing "request with malformed content-length does not cause a 500"
+         (let [sock (Socket. "localhost" port)
+               writer (PrintWriter. (.getOutputStream sock) true)
+               request-lines (str "POST / HTTP/1.1\r\n"
+                                  "Host: localhost\r\n"
+                                  "Content-Type: text/plain\r\n"
+                                  "Content-Length: abc\r\n"
+                                  "\r\n"
+                                  "body")]
+           (.setSoTimeout sock 5000)
+           (.println writer request-lines)
+           (let [reader (BufferedReader. (InputStreamReader. (.getInputStream sock)))
+                 status-line (.readLine reader)]
+             (.close sock)
+             (is (some? status-line)
+                 "Server should respond with a status line")
+             ;; Jetty rejects malformed Content-Length at the parser level (400).
+             ;; A 500 would indicate an unhandled exception in our handler.
+             (is (re-find #"^HTTP/1\.1 400" status-line)
+                 "Malformed Content-Length should be rejected by the parser as 400"))))))))
