@@ -120,7 +120,6 @@
                                      "examples/webrouting_app/src"]
                       :java-source-paths ["examples/servlet_app/src/java"
                                           "test/java"]
-                      :resource-paths ["dev-resources"]
                       :dependencies [[compojure]
                                      [hato]
                                      [org.clojure/tools.namespace]
@@ -130,6 +129,7 @@
                                      [ring/ring-core]
                                      ]}
              :dev-only {:dependencies [[org.bouncycastle/bcpkix-jdk18on]]
+                        :resource-paths ["dev-resources"]
                         :jvm-opts ["-Djava.util.logging.config.file=dev-resources/logging.properties"]}
              :dev [:shared :dev-only]
              :fips-only {:dependencies [[org.bouncycastle/bcpkix-fips]
@@ -153,8 +153,7 @@
 
              ;; per https://github.com/technomancy/leiningen/issues/1907
              ;; the provided profile is necessary for lein jar / lein install
-             :provided {:dependencies [[org.bouncycastle/bcpkix-jdk18on]]
-                        :resource-paths ["dev-resources"]}
+             :provided {:dependencies [[org.bouncycastle/bcpkix-jdk18on]]}
 
              :testutils {:source-paths ^:replace ["test/clj"]
                          :java-source-paths ^:replace ["test/java"]}}
