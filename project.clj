@@ -1,7 +1,7 @@
 (def i18n-version "1.0.4")
 (def jetty-version "12.1.9")
 (def logback-version "1.5.32")
-(def slf4j-version "2.0.17")
+(def slf4j-version "2.0.18")
 
 (defproject org.openvoxproject/trapperkeeper-webserver "12.0.3-SNAPSHOT"
   :description "A jetty-based webserver implementation for use with the org.openvoxproject/trapperkeeper service framework."
