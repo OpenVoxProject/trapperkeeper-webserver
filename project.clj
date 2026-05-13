@@ -28,7 +28,7 @@
                          [org.clojure/tools.macro "0.2.2"]
 
                          ;; Jetty Webserver (12.x with ee10 modules for Jakarta EE 10)
-                         [jakarta.servlet/jakarta.servlet-api "6.0.0"]
+                         [jakarta.servlet/jakarta.servlet-api "6.1.0"]
                          [org.eclipse.jetty/jetty-server ~jetty-version]
                          [org.eclipse.jetty.ee10/jetty-ee10-servlet ~jetty-version]
                          [org.eclipse.jetty.ee10/jetty-ee10-servlets ~jetty-version]
