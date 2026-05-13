@@ -800,6 +800,20 @@
   (proxy [jakarta.servlet.http.HttpServlet] []
     (service [^jakarta.servlet.http.HttpServletRequest request
               ^jakarta.servlet.http.HttpServletResponse response]
+      ;; Force chunked transfer encoding. In ring-core 1.15.x, strings
+      ;; are written directly to the underlying stream and teh stream is
+      ;; closed without flushing, which lets Jetty use Content-Length framing.
+      ;; With TLS 1.3, a NewSessionTicket may be sent immediately after the
+      ;; response data. Ruby's net-http sees the pending TLS record and blocks
+      ;; on a keep-alive check until timeout. Chunked encoding avoids this
+      ;; because the ticket is consumed during body reading rather than
+      ;; lingering in the TCP buffer. 
+      ;; 
+      ;; See https://github.com/OpenVoxProject/openvox-server/issues/197 for
+      ;; more details. A fix in net-http is https://github.com/ruby/ruby/pull/6423
+      ;; but even if that gets merged into the version of Ruby we use in OpenVox,
+      ;; older agents will be vulnerable to this issue.
+      (.setHeader response "Transfer-Encoding" "chunked")
       (let [request-map (-> (servlet/build-request-map request)
                             (assoc :response response))
             response-map (handler request-map)]
