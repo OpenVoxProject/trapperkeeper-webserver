@@ -139,6 +139,48 @@
                    access-log-config"
              (validate-gzip-encoding-when-gzip-requested body port)))))))
 
+(deftest response-uses-chunked-encoding
+  (with-test-logging
+    (testing "responses use chunked transfer encoding instead of content-length"
+      (let [body (apply str (repeat 1000 "f"))
+            app (fn [req]
+                  (-> body
+                      (rr/response)
+                      (rr/status 200)
+                      (rr/content-type "text/plain")
+                      (rr/charset "UTF-8")))]
+        (with-test-webserver app port
+          (let [resp (http-sync/get (format "http://localhost:%d/" port)
+                                   {:decompress-body false
+                                    :as :text})]
+            (is (= 200 (:status resp)))
+            (is (= "chunked" (get-in resp [:headers "transfer-encoding"]))
+                "response should use chunked encoding to avoid TLS 1.3 NewSessionTicket hang")
+            (is (nil? (get-in resp [:headers "content-length"]))
+                "response should not have content-length when using chunked encoding")))
+
+        (with-test-webserver-and-config app port {:gzip-enable true}
+          (let [resp (http-sync/get (format "http://localhost:%d/" port))]
+            (is (= 200 (:status resp)))
+            (is (= body (slurp (:body resp))))
+            (is (= "gzip" (get-in resp [:orig-content-encoding]))
+                "gzip should still work with chunked encoding")))
+
+        (testing "small responses also use chunked encoding"
+          (let [small-app (fn [req]
+                            (-> "hello"
+                                (rr/response)
+                                (rr/status 200)
+                                (rr/content-type "text/plain")))]
+            (with-test-webserver small-app port
+              (let [resp (http-sync/get (format "http://localhost:%d/" port)
+                                       {:decompress-body false
+                                        :as :text})]
+                (is (= 200 (:status resp)))
+                (is (= "chunked" (get-in resp [:headers "transfer-encoding"])))
+                (is (nil? (get-in resp [:headers "content-length"])))
+                (is (= "hello" (:body resp)))))))))))
+
 (deftest jmx
   (with-test-logging
     (testing "by default Jetty JMX support is enabled"
