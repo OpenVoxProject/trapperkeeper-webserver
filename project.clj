@@ -58,7 +58,7 @@
                          [org.openvoxproject/ssl-utils "3.6.4"]
                          [org.openvoxproject/trapperkeeper "5.0.1"]
                          [org.openvoxproject/trapperkeeper "5.0.1" :classifier "test"]
-                         [org.openvoxproject/trapperkeeper-filesystem-watcher "1.5.2"]
+                         [org.openvoxproject/trapperkeeper-filesystem-watcher "1.6.0"]
                          [org.slf4j/jul-to-slf4j ~slf4j-version]
                          [org.slf4j/log4j-over-slf4j ~slf4j-version]
                          [org.slf4j/slf4j-api ~slf4j-version]
