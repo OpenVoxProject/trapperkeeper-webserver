@@ -36,7 +36,7 @@
                          [org.eclipse.jetty.ee10/jetty-ee10-proxy ~jetty-version]
                          [org.eclipse.jetty/jetty-jmx ~jetty-version]
 
-                         [ch.qos.logback.access/logback-access-common "2.0.13"]
+                         [ch.qos.logback.access/logback-access-common "2.0.14"]
                          [ch.qos.logback.access/logback-access-jetty12 "2.0.13"]
                          [ch.qos.logback/logback-classic ~logback-version]
                          [ch.qos.logback/logback-core ~logback-version]
