@@ -37,7 +37,7 @@
                          [org.eclipse.jetty/jetty-jmx ~jetty-version]
 
                          [ch.qos.logback.access/logback-access-common "2.0.15"]
-                         [ch.qos.logback.access/logback-access-jetty12 "2.0.14"]
+                         [ch.qos.logback.access/logback-access-jetty12 "2.0.15"]
                          [ch.qos.logback/logback-classic ~logback-version]
                          [ch.qos.logback/logback-core ~logback-version]
                          [clj-time "0.15.2"]
