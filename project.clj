@@ -46,9 +46,10 @@
                          [compojure "1.7.2"]
                          [javax.servlet/javax.servlet-api "4.0.1"]
                          [org.bouncycastle/bcpkix-jdk18on "1.86"]
-                         [org.bouncycastle/bcpkix-fips "1.0.13"]
-                         [org.bouncycastle/bc-fips "1.0.2.6"]
-                         [org.bouncycastle/bctls-fips "1.0.19"]
+                         [org.bouncycastle/bcpkix-fips "2.1.13"]
+                         [org.bouncycastle/bc-fips "2.1.3"]
+                         [org.bouncycastle/bctls-fips "2.1.25"]
+                         [org.bouncycastle/bcutil-fips "2.1.8"]
                          [org.flatland/ordered "1.15.12"]
                          [org.openvoxproject/http-client "2.4.1"]
                          [org.openvoxproject/i18n ~i18n-version]
@@ -132,7 +133,8 @@
              :dev [:shared :dev-only]
              :fips-only {:dependencies [[org.bouncycastle/bcpkix-fips]
                                         [org.bouncycastle/bc-fips]
-                                        [org.bouncycastle/bctls-fips]]
+                                        [org.bouncycastle/bctls-fips]
+                                        [org.bouncycastle/bcutil-fips]]
                          ;; this only ensures that we run with the proper profiles
                          ;; during testing. This JVM opt will be set in the puppet module
                          ;; that sets up the JVM classpaths during installation.
