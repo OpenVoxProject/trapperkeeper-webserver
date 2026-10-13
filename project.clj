@@ -1,5 +1,5 @@
 (def i18n-version "1.0.5")
-(def jetty-version "12.1.13")
+(def jetty-version "12.1.14")
 (def logback-version "1.6.5")
 (def slf4j-version "2.0.20")
 
