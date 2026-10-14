@@ -3,3 +3,7 @@
 pom.xml
 target/
 /.lein-failures
+/.bundle
+/.vendor
+/vendor
+/Gemfile.lock
