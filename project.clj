@@ -64,7 +64,7 @@
                          [org.slf4j/slf4j-api ~slf4j-version]
                          [prismatic/schema "1.4.2"]
                          [ring/ring-codec "1.3.0"]
-                         [ring/ring-core "1.15.5"]
+                         [ring/ring-core "1.15.6"]
                          [org.ring-clojure/ring-jakarta-servlet "1.15.6"]]
   
   :dependencies [[org.clojure/clojure]
