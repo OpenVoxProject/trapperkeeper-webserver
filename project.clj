@@ -50,7 +50,7 @@
                          [org.bouncycastle/bc-fips "2.1.3"]
                          [org.bouncycastle/bctls-fips "2.1.25"]
                          [org.bouncycastle/bcutil-fips "2.1.8"]
-                         [org.flatland/ordered "1.15.12"]
+                         [org.flatland/ordered "1.16.13"]
                          [org.openvoxproject/http-client "2.4.1"]
                          [org.openvoxproject/i18n ~i18n-version]
                          [org.openvoxproject/kitchensink "3.5.8"]
