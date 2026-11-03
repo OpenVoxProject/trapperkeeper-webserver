@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [12.2.0](https://github.com/OpenVoxProject/trapperkeeper-webserver/tree/12.2.0) (2026-11-03)
+
+[Full Changelog](https://github.com/OpenVoxProject/trapperkeeper-webserver/compare/12.1.2...12.2.0)
+
+**Implemented enhancements:**
+
+- Remove unused flatland/ordered dependency [\#164](https://github.com/OpenVoxProject/trapperkeeper-webserver/pull/164) ([austb](https://github.com/austb))
+
 ## [12.1.2](https://github.com/OpenVoxProject/trapperkeeper-webserver/tree/12.1.2) (2026-10-29)
 
 [Full Changelog](https://github.com/OpenVoxProject/trapperkeeper-webserver/compare/12.1.1...12.1.2)
