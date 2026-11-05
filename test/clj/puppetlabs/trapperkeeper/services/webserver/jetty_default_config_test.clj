@@ -99,8 +99,8 @@ react accordingly."
 
 (def acceptor-thread-count
   "The number of acceptor threads that should be allocated per connector. See:
-   https://github.com/eclipse/jetty.project/blob/jetty-9.4.11.v20180605/jetty-server/src/main/java/org/eclipse/jetty/server/AbstractConnector.java#L202"
-  (max 1 (min 4 (int (/ (ks/num-cpus) 8)))))
+   https://github.com/jetty/jetty.project/blob/jetty-12.1.x/jetty-core/jetty-server/src/main/java/org/eclipse/jetty/server/AbstractConnector.java#L201"
+  1)
 
 (defn reserved-thread-count
   "Jetty will reserve threads for future connector work on start. See
