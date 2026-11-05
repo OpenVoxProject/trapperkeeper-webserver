@@ -92,7 +92,7 @@ react accordingly."
 (defn selector-thread-count
   [max-threads]
   "The number of selector threads that should be allocated per connector.
-   https://github.com/eclipse/jetty.project/blob/jetty-9.4.11.v20180605/jetty-io/src/main/java/org/eclipse/jetty/io/SelectorManager.java#L70-L74"
+   https://github.com/jetty/jetty.project/blob/jetty-12.1.x/jetty-core/jetty-io/src/main/java/org/eclipse/jetty/io/SelectorManager.java#L76"
   (max 1
        (min (int (/ max-threads 16))
             (int (/ (ks/num-cpus) 2)))))
