@@ -45,7 +45,7 @@
                          [commons-io "2.22.0"]
                          [compojure "1.7.2"]
                          [javax.servlet/javax.servlet-api "4.0.1"]
-                         [org.bouncycastle/bcpkix-jdk18on "1.86"]
+                         [org.bouncycastle/bcpkix-jdk18on "1.87"]
                          [org.bouncycastle/bcpkix-fips "2.1.13"]
                          [org.bouncycastle/bc-fips "2.1.3"]
                          [org.bouncycastle/bctls-fips "2.1.25"]
